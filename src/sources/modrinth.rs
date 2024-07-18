@@ -1,8 +1,8 @@
 #![allow(unused)]
-use crate::sources::memfile::Memfile;
+use crate::memfile::Memfile;
+use crate::profile::Profile;
 use crate::sources::modrinth_types::Project;
 use crate::sources::modrinth_types::Version;
-use crate::sources::profile::Profile;
 use crate::sources::source::Source;
 use reqwest;
 use std::error::Error;
@@ -96,7 +96,6 @@ impl Source for ModrinthSource {
 
         let version_file = &version.files[0];
         let file_content = reqwest::blocking::get(&version_file.url)?.text()?;
-        println!("Downloading mod {}", version_file.filename.clone());
         let memory_file = Memfile::new(version_file.filename.clone(), file_content);
         Ok(memory_file)
     }

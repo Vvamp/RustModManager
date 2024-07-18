@@ -3,12 +3,13 @@ use std::fs;
 use std::io::Error;
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GlobalConfig {
     pub base_directory: PathBuf,
     pub log_directory: PathBuf,
     pub log_verbosity: String,
     pub profile_directory: PathBuf,
+    pub default_profile: Option<String>,
 }
 
 impl GlobalConfig {
@@ -21,9 +22,11 @@ impl GlobalConfig {
                 log_directory: config_path.clone(),
                 log_verbosity: String::from("debug"), // todo: change to info
                 profile_directory: config_path.clone(),
+                default_profile: None,
             };
             default_config.log_directory.push("logs");
             default_config.profile_directory.push("profiles");
+
             default_config.save()?;
             return Ok(default_config);
         }

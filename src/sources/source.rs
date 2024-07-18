@@ -1,5 +1,5 @@
 #![allow(unused)]
-use super::{memfile::Memfile, profile::Profile};
+use crate::{memfile::Memfile, profile::Profile};
 use std::error::Error;
 pub trait Source {
     fn get_base_url(&self) -> &str;

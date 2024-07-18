@@ -1,13 +1,19 @@
-use sources::{
-    memfile::Memfile, modrinth::ModrinthSource, profile::Profile, source::Source,
-    storage_controller::StorageController,
-};
-mod config;
-mod sources;
-use clap::Parser;
-use clap::Subcommand;
-use config::GlobalConfig;
-use log::{debug, error, info, warn};
+pub mod commands;
+pub mod config;
+pub mod global;
+pub mod logging;
+pub mod memfile;
+pub mod profile;
+pub mod sources;
+pub mod storage_controller;
+use log::{error, info};
+
+use crate::profile::Profile;
+use crate::storage_controller::StorageController;
+use clap::{Parser, Subcommand};
+use commands::install::install;
+use global::GLOBAL_CONFIG;
+use logging::initialize_logging;
 #[derive(Parser)]
 struct Cli {
     #[command(subcommand)]
@@ -15,107 +21,148 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Commands {
-    /// Install a mod
-    Install {
-        /// Name or id of the mod to install
-        mod_name: String,
+    Profile(ProfileArgs),
+    Mod(ModArgs),
+}
+
+#[derive(Parser)]
+struct ProfileArgs {
+    #[command(subcommand)]
+    sub: ProfileSubCommands,
+}
+
+#[derive(Parser)]
+struct ModArgs {
+    #[command(subcommand)]
+    sub: ModSubCommands,
+}
+#[derive(Subcommand)]
+enum ProfileSubCommands {
+    Create {
+        #[arg(short, long)]
+        profile_name: String,
+
+        #[arg(short, long)]
+        loader: String,
+
+        #[arg(short, long)]
+        game_version: String,
+
+        #[arg(short, long)]
+        staging_directory: String,
+
+        #[arg(short, long)]
+        download_directory: Option<String>,
+    },
+    List,
+    Switch {
+        #[arg(short, long)]
+        profile_name: String,
+    },
+    Delete {
+        #[arg(short, long)]
+        profile_name: String,
     },
 }
 
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
-
-static GLOBAL_CONFIG: Lazy<Mutex<GlobalConfig>> = Lazy::new(|| {
-    let config = GlobalConfig::load().unwrap();
-    Mutex::new(config)
-});
-use flexi_logger::{opt_format, Duplicate, FileSpec, Logger};
-
-fn initialize_logging() {
-    let config = GLOBAL_CONFIG.lock().unwrap();
-    let log_level = match config.log_verbosity.as_str() {
-        "trace" => log::LevelFilter::Trace,
-        "debug" => log::LevelFilter::Debug,
-        "info" => log::LevelFilter::Info,
-        "warn" => log::LevelFilter::Warn,
-        "error" => log::LevelFilter::Error,
-        _ => log::LevelFilter::Info,
-    };
-
-    Logger::try_with_env_or_str(config.log_verbosity.as_str())
-        .unwrap()
-        .format(opt_format)
-        .log_to_file(
-            FileSpec::default()
-                .directory(&config.log_directory)
-                .basename("rmm")
-                .suffix("log"),
-        )
-        .duplicate_to_stderr(Duplicate::All)
-        .start()
-        .unwrap();
-}
-
-fn install(profile: &Profile, mod_name: &String) {
-    let a: Box<dyn Source> = Box::new(ModrinthSource::new());
-    // println!("Hello, world! {}", a.get_base_url());
-
-    debug!(
-        "[Mod Install] Downloading {} for {} mc version {}",
-        &mod_name, profile.loader, profile.game_version
-    );
-
-    let version_id = match a.get_latest_version_by_mod_id(mod_name, profile) {
-        Ok(res) => res,
-        Err(e) => {
-            error!(
-                "[Mod Install] Error while getting latest mod version: {}",
-                e
-            );
-            "".to_string()
-        }
-    };
-
-    let mod_file = match a.get_file_by_version(&version_id) {
-        Ok(res) => res,
-        Err(e) => {
-            error!("[Mod Install] Error while file by version: {}", e);
-            Memfile::new("".to_string(), "".to_string())
-        }
-    };
-
-    let storage_controller = StorageController::new();
-    let mod_save_result = match storage_controller.save_mod(profile, &mod_file) {
-        Ok(res) => {
-            debug!("[Mod Install] Saved mod file {}", &mod_file.filename);
-            res
-        }
-        Err(e) => {
-            error!("Error {}", e);
-            false
-        }
-    };
+#[derive(Subcommand)]
+enum ModSubCommands {
+    /// Installs a mod with given id
+    Install { mod_id: String },
 }
 
 fn main() {
     initialize_logging();
-    let config = GLOBAL_CONFIG.lock().unwrap();
+    let cli = Cli::parse();
 
-    let args = Cli::parse();
-    let prof = Profile::new(
-        "test".to_string(),
-        config
-            .profile_directory
-            .clone()
-            .into_os_string()
-            .into_string()
-            .unwrap(),
-        "1.20.1".to_string(),
-        "fabric".to_string(),
-        "staging".to_string(),
-        None::<String>,
-    );
-    match &args.command {
-        Commands::Install { mod_name } => install(&prof, &mod_name.to_string()),
+    // If none: show message to create a profile
+    let storage_controller = StorageController::new();
+
+    match &cli.command {
+        Commands::Profile(profile_args) => match &profile_args.sub {
+            ProfileSubCommands::Create {
+                profile_name,
+                loader,
+                game_version,
+                staging_directory,
+                download_directory,
+            } => {
+                let config;
+                {
+                    config = GLOBAL_CONFIG.lock().unwrap().clone();
+                }
+
+                let profile = Profile::new(
+                    profile_name.clone(),
+                    config
+                        .profile_directory
+                        .clone()
+                        .into_os_string()
+                        .into_string()
+                        .unwrap(),
+                    game_version.clone(),
+                    loader.clone(),
+                    staging_directory.clone(),
+                    download_directory.clone(),
+                );
+                if let Ok(res) = storage_controller.save_profile(&profile) {
+                    if res {
+                        info!(">> Profile created successfully!");
+                    } else {
+                        error!("Failed to create profile");
+                    }
+                } else {
+                    error!("Failed to create profile");
+                }
+            }
+            ProfileSubCommands::Delete { profile_name } => {
+                match storage_controller.delete_profile(&profile_name) {
+                    Ok(_) => {
+                        info!("Profile deleted successfully");
+                    }
+                    Err(e) => {
+                        error!("Failed to delete profile: {}", e);
+                    }
+                }
+            }
+            ProfileSubCommands::Switch { profile_name } => {
+                match storage_controller.set_profile(&profile_name) {
+                    Ok(_) => {
+                        info!("Switched to profile '{}'", profile_name);
+                    }
+                    Err(e) => {
+                        error!("Failed to delete profile '{}': {}", profile_name, e);
+                    }
+                }
+            }
+            ProfileSubCommands::List => {
+                // list profiles
+                let storage_controller = StorageController::new();
+
+                match storage_controller.load_all_profiles() {
+                    Ok(profiles) => {
+                        for profile in profiles {
+                            println!("{}", profile.profile_name);
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to load profiles: {}", e);
+                    }
+                }
+            }
+        },
+        Commands::Mod(mod_args) => match &mod_args.sub {
+            ModSubCommands::Install { mod_id } => {
+                info!("Installing mod '{}'...", mod_id);
+                match storage_controller.load_current_profile() {
+                    Ok(profile) => {
+                        install(&profile, mod_id);
+                    }
+                    Err(e) => {
+                        error!("Failed to install mod {}", e);
+                    }
+                }
+            }
+        },
     }
 }

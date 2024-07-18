@@ -1,4 +1,7 @@
 #![allow(unused)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Profile {
     pub profile_name: String,
     pub config_directory: String,
