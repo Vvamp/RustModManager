@@ -20,7 +20,7 @@ impl GlobalConfig {
             let mut default_config = GlobalConfig {
                 base_directory: config_path.clone(),
                 log_directory: config_path.clone(),
-                log_verbosity: String::from("debug"), // todo: change to info
+                log_verbosity: String::from("info"),
                 profile_directory: config_path.clone(),
                 default_profile: None,
             };
