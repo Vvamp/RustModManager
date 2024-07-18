@@ -1,6 +1,6 @@
 pub struct StorageController {}
 use crate::global::GLOBAL_CONFIG;
-use log::debug;
+use log::{debug, warn};
 
 use crate::memfile::Memfile;
 use crate::profile::Profile;
@@ -66,6 +66,8 @@ impl StorageController {
                     selected_profile_name
                 );
                 return Ok(profile);
+            } else {
+                warn!("An unknown profile was selected in 'current.profile'. Please select a valid profile using 'profile switch <profile_name>'")
             }
         }
 

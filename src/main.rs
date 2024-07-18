@@ -39,16 +39,12 @@ struct ModArgs {
 #[derive(Subcommand)]
 enum ProfileSubCommands {
     Create {
-        #[arg(short, long)]
         profile_name: String,
 
-        #[arg(short, long)]
         loader: String,
 
-        #[arg(short, long)]
         game_version: String,
 
-        #[arg(short, long)]
         staging_directory: String,
 
         #[arg(short, long)]
@@ -56,11 +52,9 @@ enum ProfileSubCommands {
     },
     List,
     Switch {
-        #[arg(short, long)]
         profile_name: String,
     },
     Delete {
-        #[arg(short, long)]
         profile_name: String,
     },
 }
@@ -155,9 +149,14 @@ fn main() {
             ModSubCommands::Install { mod_id } => {
                 info!("Installing mod '{}'...", mod_id);
                 match storage_controller.load_current_profile() {
-                    Ok(profile) => {
-                        install(&profile, mod_id);
-                    }
+                    Ok(profile) => match install(&profile, mod_id) {
+                        Ok(_) => {
+                            info!("Mod installed successfully");
+                        }
+                        Err(_e) => {
+                            error!("Failed to install mod.");
+                        }
+                    },
                     Err(e) => {
                         error!("Failed to install mod {}", e);
                     }

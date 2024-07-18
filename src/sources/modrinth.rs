@@ -4,6 +4,7 @@ use crate::profile::Profile;
 use crate::sources::modrinth_types::Project;
 use crate::sources::modrinth_types::Version;
 use crate::sources::source::Source;
+use log::error;
 use reqwest;
 use std::error::Error;
 
@@ -43,7 +44,11 @@ impl ModrinthSource {
         Ok(versions)
     }
 
-    pub fn get_latest_version(&self, versions: Vec<Version>) -> Version {
+    pub fn get_latest_version(&self, versions: Vec<Version>) -> Result<Version, Box<dyn Error>> {
+        if versions.len() == 0 {
+            error!("No versions found for the selected mod and game version.");
+            return Err("No versions found for the selected mod and game version.".into());
+        }
         let mut latest_version = versions[0].clone();
         for version in versions {
             if version.featured {
@@ -51,7 +56,7 @@ impl ModrinthSource {
                 break;
             }
         }
-        latest_version
+        Ok(latest_version)
     }
 }
 
@@ -76,7 +81,7 @@ impl Source for ModrinthSource {
         let proj = self.get_project_by_id(mod_id)?;
 
         let versions = self.get_versions(profile, &proj)?;
-        let latest_version = self.get_latest_version(versions);
+        let latest_version = self.get_latest_version(versions)?;
         Ok(latest_version.id)
 
         /*
