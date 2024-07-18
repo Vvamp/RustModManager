@@ -21,7 +21,9 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Commands {
+    #[command(aliases = &["p", "profiles"])]
     Profile(ProfileArgs),
+    #[command(alias = "m")]
     Mod(ModArgs),
 }
 
@@ -38,6 +40,7 @@ struct ModArgs {
 }
 #[derive(Subcommand)]
 enum ProfileSubCommands {
+    #[command(alias = "c")]
     Create {
         profile_name: String,
 
@@ -50,18 +53,21 @@ enum ProfileSubCommands {
         #[arg(short, long)]
         download_directory: Option<String>,
     },
+
+    #[command(alias = "ls")]
     List,
-    Switch {
-        profile_name: String,
-    },
-    Delete {
-        profile_name: String,
-    },
+
+    #[command(alias = "s")]
+    Switch { profile_name: String },
+
+    #[command(aliases = &["d", "rm"])]
+    Delete { profile_name: String },
 }
 
 #[derive(Subcommand)]
 enum ModSubCommands {
     /// Installs a mod with given id
+    #[command(aliases = &["in", "add", "i"])]
     Install { mod_id: String },
 }
 
