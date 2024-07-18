@@ -83,15 +83,6 @@ impl Source for ModrinthSource {
         let versions = self.get_versions(profile, &proj)?;
         let latest_version = self.get_latest_version(versions)?;
         Ok(latest_version.id)
-
-        /*
-         * For next time: return the version id
-         * make a new function 'download file from version id'
-         ** after: make functions to find and install dependencies
-         ** handle staging
-         ** cli
-         ** gui
-         */
     }
 
     fn get_file_by_version(&self, version_id: &str) -> Result<Memfile, Box<dyn Error>> {

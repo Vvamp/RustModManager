@@ -66,6 +66,13 @@ enum ModSubCommands {
 }
 
 fn main() {
+    /*
+     ** clean up main (cli parsing to seperate function, functions in seperate files)
+     ** make functions to find and install dependencies
+     ** handle staging (symlinks)
+     ** gui
+     */
+
     initialize_logging();
     let cli = Cli::parse();
 
@@ -135,8 +142,16 @@ fn main() {
 
                 match storage_controller.load_all_profiles() {
                     Ok(profiles) => {
+                        if profiles.len() == 0 {
+                            println!("No profiles found. Create one using 'profile create'");
+                        } else {
+                            println!("Profiles:")
+                        }
                         for profile in profiles {
-                            println!("{}", profile.profile_name);
+                            println!(
+                                "- {} / {} / {}",
+                                profile.profile_name, profile.loader, profile.game_version
+                            );
                         }
                     }
                     Err(e) => {
